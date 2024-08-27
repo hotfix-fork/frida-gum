@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2009-2024 Ole André Vadla Ravnås <oleavr@nowsecure.com>
  * Copyright (C) 2023 Francesco Tamagni <mrmacete@protonmail.ch>
+ * Copyright (C) 2024 Håvard Sørbø <havard@hsorbo.no>
  *
  * Licence: wxWindows Library Licence, Version 3.1
  */
@@ -20,6 +21,10 @@
 # pragma GCC diagnostic push
 # pragma GCC diagnostic ignored "-Warray-bounds"
 #endif
+
+#define GUM_S_USER ((uint32_t) (2u << 1))
+#define GUM_BAS_ANY ((uint32_t) 15u)
+#define GUM_BCR_ENABLE ((uint32_t) 1u)
 
 typedef HRESULT (WINAPI * GumGetThreadDescriptionFunc) (
     HANDLE thread, WCHAR ** description);
@@ -639,6 +644,64 @@ beach:
 
     return success;
   }
+}
+
+gboolean
+gum_thread_set_hardware_breakpoint (GumThreadId thread_id,
+                                    guint breakpoint_id,
+                                    GumAddress address,
+                                    GError ** error)
+{
+  gboolean success = FALSE;
+  HANDLE thread;
+  CONTEXT ctx = { 0, };
+
+  thread = OpenThread (
+      THREAD_QUERY_INFORMATION | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, FALSE,
+      thread_id);
+  if (thread == NULL)
+    goto failure;
+
+  ctx.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+
+  if (!GetThreadContext (thread, &ctx))
+    goto failure;
+
+  ctx.Bvr[breakpoint_id] = address;
+  if (address != 0)
+    ctx.Bcr[breakpoint_id] = (GUM_BAS_ANY << 5) | GUM_S_USER | GUM_BCR_ENABLE;
+  else
+    ctx.Bcr[breakpoint_id] = 0;
+
+  if (!SetThreadContext (thread, &ctx))
+    goto failure;
+
+  success = TRUE;
+  goto beach;
+
+failure:
+  {
+    g_set_error (error,
+        GUM_ERROR,
+        GUM_ERROR_FAILED,
+        "Unable to set hardware breakpoint: 0x%08lx", GetLastError ());
+    goto beach;
+  }
+beach:
+  {
+    if (thread != NULL)
+      CloseHandle (thread);
+
+    return success;
+  }
+}
+
+gboolean
+gum_thread_unset_hardware_breakpoint (GumThreadId thread_id,
+                                      guint breakpoint_id,
+                                      GError ** error)
+{
+  return TRUE;
 }
 
 gboolean

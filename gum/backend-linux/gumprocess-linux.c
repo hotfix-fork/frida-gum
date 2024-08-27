@@ -1549,6 +1549,27 @@ failure:
 }
 
 gboolean
+gum_thread_set_hardware_breakpoint (GumThreadId thread_id,
+                                    guint breakpoint_id,
+                                    gpointer address,
+                                    GError ** error)
+{
+  g_set_error (error, GUM_ERROR, GUM_ERROR_NOT_SUPPORTED,
+      "Hardware breakpoints not yet supported on this platform");
+  return FALSE;
+}
+
+gboolean
+gum_thread_unset_hardware_breakpoint (GumThreadId thread_id,
+                                      guint breakpoint_id,
+                                      GError ** error)
+{
+  g_set_error (error, GUM_ERROR, GUM_ERROR_NOT_SUPPORTED,
+      "Hardware breakpoints not yet supported on this platform");
+  return FALSE;
+}
+
+gboolean
 gum_module_load (const gchar * module_name,
                  GError ** error)
 {
